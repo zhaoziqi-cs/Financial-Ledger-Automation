@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>财务资金台账自动化系统</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+  <main class="container">
+    <section class="card">
+      <h1>财务资金台账自动化系统</h1>
+      <p class="subtitle">上传银行日记账与银行流水，自动生成更新后的 ledger.xlsx</p>
+
+      {% if error %}
+      <div class="alert">{{ error }}</div>
+      {% endif %}
+
+      <form method="post" action="{{ url_for('process_files') }}" enctype="multipart/form-data">
+        <label for="ledger_file">银行日记账（Excel）</label>
+        <input id="ledger_file" name="ledger_file" type="file" accept=".xlsx,.xls" required>
+
+        <label for="bank_flow_file">银行流水（Excel）</label>
+        <input id="bank_flow_file" name="bank_flow_file" type="file" accept=".xlsx,.xls" required>
+
+        <button type="submit">生成并下载 ledger.xlsx</button>
+      </form>
+    </section>
+  </main>
+</body>
+</html>
