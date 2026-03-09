@@ -1,3 +1,4 @@
-/data
+/data/raw/*
+/data/processed/*
 /_pycache__
 *.pyc
