@@ -3,7 +3,13 @@ from datetime import datetime
 import shutil
 
 
-def update_ledger(ledger_file,bank_file):
+def update_ledger(
+    ledger_file,
+    bank_file,
+    output_file=None,
+    backup=True,
+    backup_dir="./data/processed"
+):
 
     # 读取数据
     ledger = pd.read_excel(ledger_file)
@@ -36,17 +42,21 @@ def update_ledger(ledger_file,bank_file):
     # 合并
     result = pd.concat([ledger, bank], ignore_index=True)
 
-    # 自动备份
-    today = datetime.now().strftime("%Y%m%d")
-    backup_file = f"./data/processed/ledger_{today}.xlsx"
+    if output_file is None:
+        output_file = ledger_file
 
-    shutil.copy(ledger_file, backup_file)
+    backup_file = None
+    if backup:
+        today = datetime.now().strftime("%Y%m%d")
+        backup_file = f"{backup_dir}/ledger_{today}.xlsx"
+        shutil.copy(ledger_file, backup_file)
 
     # 覆盖写入
-    result.to_excel(ledger_file, index=False)
+    result.to_excel(output_file, index=False)
 
     print("台账更新完成")
-    print("备份文件:", backup_file)
+    if backup_file:
+        print("备份文件:", backup_file)
 
 
 if __name__ == "__main__":
