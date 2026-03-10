@@ -10,15 +10,15 @@
   <main class="container">
     <section class="card">
       <h1>财务资金台账自动化系统</h1>
-      <p class="subtitle">上传银行日记账与银行流水，自动生成更新后的 ledger.xlsx</p>
+      <p class="subtitle">上传银行流水（银行日记账可选），自动生成更新后的 ledger.xlsx</p>
 
       {% if error %}
       <div class="alert">{{ error }}</div>
       {% endif %}
 
       <form method="post" action="{{ url_for('process_files') }}" enctype="multipart/form-data">
-        <label for="ledger_file">银行日记账（Excel）</label>
-        <input id="ledger_file" name="ledger_file" type="file" accept=".xlsx,.xls" required>
+        <label for="ledger_file">银行日记账（Excel）【可选】</label>
+        <input id="ledger_file" name="ledger_file" type="file" accept=".xlsx,.xls">
 
         <label for="bank_flow_file">银行流水（Excel）</label>
         <input id="bank_flow_file" name="bank_flow_file" type="file" accept=".xlsx,.xls" required>

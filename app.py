@@ -32,13 +32,16 @@ def process_files():
     ledger_upload = request.files.get("ledger_file")
     bank_flow_upload = request.files.get("bank_flow_file")
 
-    if not ledger_upload or not bank_flow_upload:
-        return render_template("index.html", error="请上传银行日记账和银行流水两个文件。"), 400
+    if not bank_flow_upload:
+        return render_template("index.html", error="请上传银行流水文件。"), 400
 
-    if not ledger_upload.filename or not bank_flow_upload.filename:
-        return render_template("index.html", error="上传文件名不能为空。"), 400
+    if not bank_flow_upload.filename:
+        return render_template("index.html", error="银行流水文件名不能为空。"), 400
 
-    if not _allowed_file(ledger_upload.filename) or not _allowed_file(bank_flow_upload.filename):
+    if ledger_upload and ledger_upload.filename and not _allowed_file(ledger_upload.filename):
+        return render_template("index.html", error="仅支持 .xlsx / .xls 文件。"), 400
+
+    if not _allowed_file(bank_flow_upload.filename):
         return render_template("index.html", error="仅支持 .xlsx / .xls 文件。"), 400
 
     if not MAP_FILE.exists():
@@ -47,19 +50,24 @@ def process_files():
     with tempfile.TemporaryDirectory() as temp_dir:
         temp_path = Path(temp_dir)
 
-        ledger_path = temp_path / secure_filename(ledger_upload.filename)
         bank_flow_path = temp_path / secure_filename(bank_flow_upload.filename)
         parsed_path = temp_path / "bank_flow_parsed.xlsx"
         output_path = temp_path / "ledger.xlsx"
 
-        ledger_upload.save(ledger_path)
+        # 保存银行流水文件
         bank_flow_upload.save(bank_flow_path)
+
+        # 仅在提供了台账文件时保存
+        ledger_path = None
+        if ledger_upload and ledger_upload.filename:
+            ledger_path = temp_path / secure_filename(ledger_upload.filename)
+            ledger_upload.save(ledger_path)
 
         try:
             parse_bank_flow(str(bank_flow_path), str(MAP_FILE), str(parsed_path))
             update_ledger(
-                ledger_file=str(ledger_path),
                 bank_file=str(parsed_path),
+                ledger_file=str(ledger_path) if ledger_path else None,
                 output_file=str(output_path),
                 backup=False
             )

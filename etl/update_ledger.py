@@ -4,49 +4,55 @@ import shutil
 
 
 def update_ledger(
-    ledger_file,
     bank_file,
+    ledger_file=None,
     output_file=None,
     backup=True,
     backup_dir="./data/processed"
 ):
 
-    # 读取数据
-    ledger = pd.read_excel(ledger_file)
+    # 读取银行流水
     bank = pd.read_excel(bank_file)
 
-    # 删除银行流水旧序号和余额
-    bank = bank.drop(columns=["序号", "期末余额"])
+    # 如果没有提供台账，直接返回银行流水解析结果
+    if ledger_file is None or ledger_file == "":
+        result = bank
+    else:
+        # 读取台账
+        ledger = pd.read_excel(ledger_file)
 
-    # 获取最后序号
-    last_seq = ledger["序号"].iloc[-1]
+        # 删除银行流水旧序号和余额
+        bank = bank.drop(columns=["序号", "期末余额"])
 
-    bank["序号"] = range(
-        last_seq + 1,
-        last_seq + 1 + len(bank)
-    )
+        # 获取最后序号
+        last_seq = ledger["序号"].iloc[-1]
 
-    # 获取最后余额
-    prev_balance = ledger["期末余额"].iloc[-1]
+        bank["序号"] = range(
+            last_seq + 1,
+            last_seq + 1 + len(bank)
+        )
 
-    balances = []
+        # 获取最后余额
+        prev_balance = ledger["期末余额"].iloc[-1]
 
-    for _, row in bank.iterrows():
+        balances = []
 
-        prev_balance = prev_balance + row["收"] - row["支"]
+        for _, row in bank.iterrows():
 
-        balances.append(prev_balance)
+            prev_balance = prev_balance + row["收"] - row["支"]
 
-    bank["期末余额"] = balances
+            balances.append(prev_balance)
 
-    # 合并
-    result = pd.concat([ledger, bank], ignore_index=True)
+        bank["期末余额"] = balances
+
+        # 合并
+        result = pd.concat([ledger, bank], ignore_index=True)
 
     if output_file is None:
-        output_file = ledger_file
+        output_file = ledger_file if ledger_file else "ledger.xlsx"
 
     backup_file = None
-    if backup:
+    if backup and ledger_file:
         today = datetime.now().strftime("%Y%m%d")
         backup_file = f"{backup_dir}/ledger_{today}.xlsx"
         shutil.copy(ledger_file, backup_file)
