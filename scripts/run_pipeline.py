@@ -1,18 +1,19 @@
 from etl.parse_bank_flow import parse_bank_flow
-from etl.update_ledger import update_ledger
+from etl.merge_ledger import merge_ledger
 
 
 def run_pipeline():
 
     bank_file = "./data/raw/bank_flow.xlsx"
     map_file = "./data/config/project_map.xlsx"
-    parsed_file = "./data/processed/bank_flow_parsed.xlsx"
+
+    print("========== 开始处理银行流水 ==========")
 
     print("1️⃣ 解析银行流水")
-    parse_bank_flow(bank_file, map_file, parsed_file)
+    parse_bank_flow(bank_file, map_file)
 
     print("2️⃣ 更新资金台账")
-    update_ledger("./data/processed/ledger.xlsx", parsed_file)
+    merge_ledger()
 
     print("✅ 全部完成")
 

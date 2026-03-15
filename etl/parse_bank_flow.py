@@ -1,4 +1,5 @@
 import pandas as pd
+from database.database import append_dataframe,clear_table
 
 # 读取项目映射
 def load_project_map(map_file):
@@ -33,15 +34,15 @@ def generate_summary(flow_type, income, expense):
     return flow_type
 
 # 主函数
-def parse_bank_flow(bank_file, map_file, output_file):
+def parse_bank_flow(bank_file, map_file):
 
     # 读取银行流水
     df = pd.read_excel(bank_file)
 
     # 数据清洗
-    df["收"] = df["收款金额"].astype(float)
-    df["支"] = df["付款金额"].astype(float)
-    df["日期"] = pd.to_datetime(
+    df["income"] = df["收款金额"].astype(float)
+    df["expense"] = df["付款金额"].astype(float)
+    df["date"] = pd.to_datetime(
         df["交易日期"],
         format="%Y%m%d",
         errors="coerce"
@@ -51,45 +52,35 @@ def parse_bank_flow(bank_file, map_file, output_file):
     project_map = load_project_map(map_file)
 
     # 项目识别
-    df["项目"] = df["摘要"].apply(
+    df["project"] = df["摘要"].apply(
         lambda x: match_project(x, project_map)
     )
 
     # 生成最终摘要
-    df["摘要"] = df.apply(
-        lambda row: generate_summary(row["流水类型"], row["收"], row["支"]),
+    df["summary"] = df.apply(
+        lambda row: generate_summary(row["流水类型"], row["income"], row["expense"]),
         axis=1
     )
 
     # 按 日期 + 项目 + 摘要 汇总
     result = (
-        df.groupby(["日期", "项目", "摘要"])[["收", "支"]]
+        df.groupby(["date", "project", "summary"])[["income", "expense"]]
         .sum()
         .reset_index()
     )
+    print("解析完成，共", len(result), "条记录")
 
-    # 生成序号
-    result = result.sort_values("日期")
-    result.insert(0, "序号", range(1, len(result) + 1))
+    # 清空中间表
+    clear_table("bank_flow")
 
-    # 初始化余额
-    result["期末余额"] = 0
+    # 写入数据库
+    append_dataframe(result, "bank_flow")
 
-    # 输出列顺序
-    result = result[
-        ["序号", "日期", "项目", "摘要", "收", "支", "期末余额"]
-    ]
-
-    # 保存
-    result.to_excel(output_file, index=False)
-
-    print("转换完成:", output_file)
-
+    print("已写入数据库 bank_flow 表")
+    
 if __name__ == "__main__":
 
     bank_file = "./data/raw/bank_flow.xlsx"
     map_file = "./data/config/project_map.xlsx"
-    output_file = "./data/processed/bank_flow_parsed.xlsx"
 
-    parse_bank_flow(bank_file, map_file, output_file)
-
+    parse_bank_flow(bank_file, map_file)

@@ -3,3 +3,4 @@ openpyxl
 xlsxwriter
 flask
 gunicorn
+pymysql
