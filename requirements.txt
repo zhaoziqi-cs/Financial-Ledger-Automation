@@ -1,6 +1,0 @@
-pandas
-openpyxl
-xlsxwriter
-flask
-gunicorn
-pymysql

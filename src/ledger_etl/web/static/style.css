@@ -1,0 +1,50 @@
+:root {
+  --bg: #eef2ec;
+  --card: #ffffff;
+  --ink: #1b2420;
+  --muted: #5c6b63;
+  --line: #dde4db;
+  --pine: #0e6a4e;
+  --danger: #b91c1c;
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0; background: var(--bg); color: var(--ink);
+  font-family: "Microsoft YaHei", "PingFang SC", "Noto Sans SC", system-ui, sans-serif;
+  line-height: 1.6;
+}
+.wrap { max-width: 1000px; margin: 0 auto; padding: 40px 20px 80px; }
+h1 { margin: 0 0 4px; font-size: 26px; }
+.sub { color: var(--muted); margin: 0 0 24px; }
+
+.card {
+  background: var(--card); border: 1px solid var(--line); border-radius: 14px;
+  padding: 22px; margin-bottom: 26px;
+}
+form { display: grid; gap: 10px; max-width: 560px; }
+label { font-size: 13.5px; font-weight: 600; }
+input[type=file] { padding: 8px; border: 1px solid var(--line); border-radius: 8px; background: #fff; }
+button, .btn {
+  margin-top: 8px; padding: 10px 14px; border: none; border-radius: 9px;
+  font-size: 15px; font-weight: 600; color: #fff; background: var(--pine);
+  cursor: pointer; text-decoration: none;
+}
+button:disabled { opacity: .6; cursor: wait; }
+.btn.alt { background: #6b7280; }
+
+.msg { border-radius: 10px; padding: 10px 14px; margin-top: 14px; font-size: 14px; }
+.msg.ok { background: #e3f2e9; color: #0e5a41; }
+.msg.err { background: #fdecea; color: var(--danger); }
+
+.stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 12px; margin-bottom: 16px; }
+.stat { border: 1px solid var(--line); border-top: 2px solid var(--pine); background: var(--card); border-radius: 12px; padding: 12px 16px; }
+.stat b { display: block; font-size: 20px; font-variant-numeric: tabular-nums; }
+.stat span { font-size: 12.5px; color: var(--muted); }
+
+.tools { display: flex; gap: 12px; flex-wrap: wrap; margin: 6px 0 22px; }
+.scroll { overflow-x: auto; border: 1px solid var(--line); border-radius: 12px; background: var(--card); }
+table { border-collapse: collapse; width: 100%; font-size: 13px; min-width: 720px; }
+th, td { text-align: left; padding: 8px 12px; border-bottom: 1px solid var(--line); white-space: nowrap; }
+th { color: var(--muted); font-weight: 500; }
+td.num { text-align: right; font-variant-numeric: tabular-nums; }
+.muted { color: var(--muted); font-size: 13px; margin-top: 10px; }

@@ -1,4 +1,17 @@
+# data 输入输出（保留目录，忽略文件）
 /data/raw/*
 /data/processed/*
-/_pycache__
-*.pyc
+!/data/raw/.gitkeep
+!/data/processed/.gitkeep
+/data/*.db
+/data/*.db-wal
+/data/*.db-shm
+/data/config/*
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+.pytest_cache/
+*.egg-info/
+.coverage

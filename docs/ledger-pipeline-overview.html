@@ -1,0 +1,486 @@
+<title>台账自动化数据流水线</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Noto+Sans+SC:wght@400;500;700&family=Noto+Serif+SC:wght@600;800&display=swap" rel="stylesheet">
+
+<style>
+  :root{
+    --bg:#eef2ec; --card:#fbfcf8; --card2:#f4f7f1;
+    --ink:#1b2420; --muted:#5c6b63; --faint:#8a978e;
+    --line:#dde4db; --line-strong:#c9d5c8;
+    --pine:#0e6a4e; --pineDeep:#0a4d38;
+    --pineSoft:#e3eee7; --headBg:#17583f; --onHead:#f2faf5;
+    --amber:#a0610f; --amberDeep:#7a4a08; --amberSoft:#f4ead3; --amberLine:#d9c089;
+    --serif:'Noto Serif SC','Songti SC',serif;
+    --sans:'Noto Sans SC','Microsoft YaHei',system-ui,sans-serif;
+    --mono:'IBM Plex Mono',ui-monospace,Consolas,monospace;
+  }
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]){
+      --bg:#0e1410; --card:#181f1a; --card2:#141b16;
+      --ink:#e9f0ea; --muted:#a3b0a7; --faint:#748279;
+      --line:#2a352e; --line-strong:#3a463e;
+      --pine:#3fbb8e; --pineDeep:#6ed3ac;
+      --pineSoft:#12271e; --headBg:#1e7a58; --onHead:#e9faf1;
+      --amber:#e0a94a; --amberDeep:#eecb8d; --amberSoft:#2b2111; --amberLine:#8a6a24;
+    }
+  }
+  :root[data-theme="dark"]{
+    --bg:#0e1410; --card:#181f1a; --card2:#141b16;
+    --ink:#e9f0ea; --muted:#a3b0a7; --faint:#748279;
+    --line:#2a352e; --line-strong:#3a463e;
+    --pine:#3fbb8e; --pineDeep:#6ed3ac;
+    --pineSoft:#12271e; --headBg:#1e7a58; --onHead:#e9faf1;
+    --amber:#e0a94a; --amberDeep:#eecb8d; --amberSoft:#2b2111; --amberLine:#8a6a24;
+  }
+
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);
+    font-family:var(--sans);line-height:1.65;-webkit-font-smoothing:antialiased}
+  .wrap{max-width:1060px;margin:0 auto;padding:56px 26px 88px}
+
+  a{color:var(--pineDeep)}
+  code,.code{font-family:var(--mono)}
+
+  /* ---------- hero ---------- */
+  .eyebrow{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:22px}
+  .chip{font-family:var(--mono);font-size:11.5px;letter-spacing:.04em;color:var(--muted);
+    border:1px solid var(--line);background:var(--card);padding:3px 10px;border-radius:99px}
+  h1{font-family:var(--serif);font-weight:800;font-size:clamp(30px,4.6vw,46px);
+    line-height:1.22;margin:0 0 14px;text-wrap:balance;letter-spacing:.01em}
+  h1 .accent{color:var(--pineDeep)}
+  .lede{color:var(--muted);font-size:15.5px;max-width:60ch;margin:0 0 30px}
+  .statrow{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:8px}
+  .stat{border:1px solid var(--line);border-top:2px solid var(--pine);background:var(--card);
+    padding:12px 16px;border-radius:12px}
+  .stat b{display:block;font-family:var(--serif);font-size:22px;font-weight:800;color:var(--pineDeep);font-variant-numeric:tabular-nums}
+  .stat span{font-size:12.5px;color:var(--muted)}
+
+  /* ---------- sections ---------- */
+  section{margin-top:54px}
+  .kicker{font-family:var(--mono);font-size:11.5px;letter-spacing:.18em;color:var(--pineDeep);
+    text-transform:uppercase;margin:0 0 8px;font-weight:600}
+  h2{font-family:var(--serif);font-weight:800;font-size:26px;margin:0 0 6px;text-wrap:balance}
+  .sec-sub{color:var(--muted);font-size:14px;max-width:70ch;margin:0 0 20px}
+
+  .panel{border:1px solid var(--line);background:var(--card);border-radius:16px;
+    padding:22px 20px 18px;overflow-x:auto}
+  figure{margin:0}
+  svg{display:block;max-width:100%;height:auto}
+  .figcap{color:var(--muted);font-size:13px;margin-top:12px;padding-top:10px;border-top:1px dashed var(--line)}
+  .figcap b{color:var(--ink);font-weight:700}
+
+  /* ---------- steps ---------- */
+  .steps{display:flex;flex-direction:column;gap:12px}
+  .step{display:grid;grid-template-columns:44px 1fr;gap:16px;align-items:start;
+    border:1px solid var(--line);background:var(--card);border-radius:14px;padding:16px 18px}
+  .step .no{width:34px;height:34px;border-radius:50%;background:var(--headBg);color:var(--onHead);
+    font-family:var(--serif);font-weight:800;display:flex;align-items:center;justify-content:center;font-size:16px;margin-top:2px}
+  .step h3{margin:0 0 4px;font-size:16px;font-weight:700;display:flex;flex-wrap:wrap;gap:8px;align-items:baseline}
+  .step h3 .fn{font-family:var(--mono);font-size:13px;font-weight:600;color:var(--pineDeep)}
+  .step h3 .tbl{font-family:var(--mono);font-size:12.5px;font-weight:600;color:var(--amberDeep);
+    background:var(--amberSoft);border:1px solid var(--amberLine);padding:1px 7px;border-radius:6px}
+  .step h3 .cmd{font-family:var(--mono);font-size:11.5px;color:var(--muted);
+    background:var(--card2);border:1px solid var(--line);border-radius:6px;padding:1px 7px;font-weight:500}
+  .step p{margin:0;color:var(--muted);font-size:14px;max-width:80ch}
+  .step p code,.memo code{background:var(--card2);border:1px solid var(--line);border-radius:5px;
+    padding:0 5px;font-size:12px;color:var(--ink)}
+
+  .callout{border:1px solid var(--amberLine);background:var(--amberSoft);border-left:4px solid var(--amber);
+    border-radius:12px;padding:14px 18px;font-size:14px;color:var(--ink)}
+  .callout b{color:var(--amberDeep)}
+  .callout p{margin:6px 0 0}
+  .cmds{font-family:var(--mono);font-size:12.5px;line-height:2;margin:8px 0 0;color:var(--amberDeep)}
+
+  .grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:14px}
+  .card2{border:1px solid var(--line);background:var(--card);border-radius:14px;padding:16px 18px}
+  .card2 h3{margin:0 0 8px;font-size:15px;font-weight:700}
+  .card2 h3 .tblname{font-family:var(--mono);font-size:13.5px;color:var(--pineDeep)}
+  .ddl{font-family:var(--mono);font-size:12px;line-height:1.9;background:var(--card2);
+    border:1px solid var(--line);border-radius:10px;padding:10px 12px;overflow-x:auto;white-space:pre;color:var(--muted)}
+  ul.tight{margin:10px 0 0;padding-left:20px;color:var(--muted);font-size:13.5px}
+  ul.tight li{margin:3px 0}
+  ul.tight b{color:var(--ink);font-weight:600}
+
+  /* ---------- tables ---------- */
+  table{border-collapse:collapse;width:100%;font-size:13.5px;min-width:640px}
+  th,td{padding:9px 12px;text-align:left;vertical-align:top;border-bottom:1px solid var(--line)}
+  thead th{font-size:12px;letter-spacing:.04em;color:var(--faint);font-weight:500;
+    border-bottom:1px solid var(--line-strong);white-space:nowrap}
+  td code,td .mono{font-family:var(--mono);font-size:12.5px;white-space:nowrap}
+  tr:last-child td{border-bottom:none}
+  .tag-src{color:var(--amberDeep);background:var(--amberSoft);border-radius:5px;padding:0 6px;font-family:var(--mono);font-size:11.5px}
+  .tag-out{color:var(--pineDeep);background:var(--pineSoft);border-radius:5px;padding:0 6px;font-family:var(--mono);font-size:11.5px}
+
+  .timeline{border-left:1px solid var(--line-strong);margin-left:8px;padding-left:22px;
+    display:flex;flex-direction:column;gap:20px}
+  .tl{position:relative}
+  .tl::before{content:"";position:absolute;left:-28px;top:5px;width:10px;height:10px;border-radius:50%;
+    background:var(--pine);box-shadow:0 0 0 4px var(--bg)}
+  .tl h4{margin:0 0 2px;font-size:15px;font-weight:700}
+  .tl .when{font-family:var(--mono);font-size:11.5px;color:var(--pineDeep);letter-spacing:.03em}
+  .tl p{margin:5px 0 0;color:var(--muted);font-size:13.5px;max-width:75ch}
+  .tl code{font-family:var(--mono);font-size:12px;background:var(--card2);border:1px solid var(--line);border-radius:5px;padding:0 5px}
+</style>
+
+<div class="wrap">
+
+  <div class="eyebrow">
+    <span class="chip">Financial Ledger Automation</span>
+    <span class="chip">Python · pandas</span>
+    <span class="chip">SQLite · ledger.db</span>
+    <span class="chip">FastAPI（本地网页）</span>
+    <span class="chip">argparse CLI</span>
+  </div>
+
+  <h1>银行流水进来，<span class="accent">一本更新的总台账</span>出去</h1>
+  <p class="lede">
+    这是一个“资金台账自动化”项目的全流程解读：银行每个月导出的<b>流水 Excel</b>，怎样被自动清洗、识别出项目、
+    写进 <b>SQLite（data/ledger.db）</b> 的总台账。代码统一在 <b>src/ledger_etl/</b>，命令行 <code>ledger</code> 一键执行，
+    本地网页端用 FastAPI（入库为主、下载为辅）。
+  </p>
+
+  <div class="statrow">
+    <div class="stat"><b>3</b><span>张 SQLite 表：暂存 + 主表 + 异常</span></div>
+    <div class="stat"><b>1</b><span>张「项目编码 → 名称」映射表</span></div>
+    <div class="stat"><b>5</b><span>步完成一次“本期并账”</span></div>
+    <div class="stat"><b>≈7k</b><span>行历史明细，仅 init 重建</span></div>
+  </div>
+
+  <!-- ================= 图 A ================= -->
+  <section>
+    <p class="kicker">01 · 主循环</p>
+    <h2>每一期新流水，怎么并入总台账</h2>
+    <p class="sec-sub">一次 <code>ledger run</code> 跑两根管道：<b>解析</b>把新流水变成干净的行，<b>并账</b>把本期<b>追加</b>到主表末尾、以上期末余额续算；只有出现更早日期的<b>补录</b>时才会整段重排。绿色框是库表。</p>
+
+    <div class="panel">
+      <figure>
+        <svg viewBox="0 0 900 1120" role="img" aria-label="主流程：两份输入文件进入解析脚本，写入 bank_flow 暂存表，再由并账脚本追加进 ledger 主表（补录时整段重排），最后导出">
+          <defs>
+            <marker id="ah" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6.5" markerHeight="6.5" orient="auto-start-reverse">
+              <path d="M0,0 L10,5 L0,10 z" style="fill:var(--pine)"/>
+            </marker>
+          </defs>
+
+          <style>
+            svg text{font-family:var(--sans);fill:var(--ink)}
+            .m-mono{font-family:var(--mono)}
+            .c-ink{fill:var(--ink)} .c-mut{fill:var(--muted)} .c-faint{fill:var(--faint)}
+            .c-pine{fill:var(--pineDeep)} .c-head{fill:var(--onHead)}
+            .b-file{fill:var(--amberSoft);stroke:var(--amberLine);stroke-width:1.4}
+            .b-proc{fill:var(--card);stroke:var(--pine);stroke-width:1.6}
+            .b-db{fill:var(--pineSoft);stroke:var(--pine);stroke-width:1.6}
+            .b-head{fill:var(--headBg)}
+            .flow{stroke:var(--pine);stroke-width:1.6;fill:none}
+            .num{fill:var(--headBg)} .numt{fill:var(--onHead);font-family:var(--serif);font-weight:800}
+          </style>
+
+          <!-- 输入：两份文件 -->
+          <rect class="b-file" x="140" y="16" width="300" height="84" rx="10"/>
+          <text class="m-mono c-ink" x="290" y="48" text-anchor="middle" font-size="14" font-weight="600">bank_flow.xlsx</text>
+          <text x="290" y="74" text-anchor="middle" font-size="11.5" class="c-mut">银行导出的流水明细（12 列原始字段）</text>
+
+          <rect class="b-file" x="560" y="16" width="270" height="84" rx="10"/>
+          <text class="m-mono c-ink" x="695" y="48" text-anchor="middle" font-size="14" font-weight="600">project_map.xlsx</text>
+          <text x="695" y="74" text-anchor="middle" font-size="11.5" class="c-mut">项目编码 → 项目名称 对照</text>
+
+          <!-- 解析脚本 -->
+          <rect class="b-proc" x="140" y="168" width="300" height="132" rx="10"/>
+          <text class="m-mono c-pine" x="290" y="196" text-anchor="middle" font-size="14.5" font-weight="600">parse_bank_flow.py</text>
+          <text x="160" y="225" font-size="12" class="c-ink">① 摘要里扫“项目编码”→ 映射成项目名</text>
+          <text x="160" y="243" font-size="12" class="c-ink">② 收款 / 付款金额、交易日期标准化</text>
+          <text x="160" y="261" font-size="12" class="c-ink">③ 摘要规整：收到 / 支付 + 流水类型</text>
+          <text x="160" y="279" font-size="12" class="c-ink">④ 相同（日期·项目·摘要）聚合成一笔</text>
+
+          <!-- 入库箭头 -->
+          <line class="flow" x1="290" y1="100" x2="290" y2="160" marker-end="url(#ah)"/>
+          <text x="302" y="142" font-size="11" class="c-mut">读取</text>
+          <line class="flow" x1="695" y1="100" x2="446" y2="196" marker-end="url(#ah)"/>
+          <text x="588" y="128" text-anchor="middle" font-size="11" class="c-mut">读取映射</text>
+
+          <!-- bank_flow 暂存表 -->
+          <rect class="b-db" x="140" y="368" width="300" height="150" rx="10"/>
+          <rect class="b-head" x="140" y="368" width="300" height="32" rx="10"/>
+          <rect class="b-head" x="140" y="388" width="300" height="12"/>
+          <text class="m-mono c-head" x="160" y="390" font-size="13" font-weight="600">bank_flow</text>
+          <text x="424" y="390" text-anchor="end" font-size="11" class="c-head">SQLite 暂存表</text>
+          <text class="m-mono c-ink" x="160" y="428" font-size="12">date  ·  project  ·  summary</text>
+          <text class="m-mono c-ink" x="160" y="450" font-size="12">income  ·  expense</text>
+          <text x="160" y="476" font-size="11.5" class="c-ink">只装“本期解析结果”，每次清空重灌</text>
+          <text x="160" y="496" font-size="11" class="c-faint">并账读走后即清空 —— 不累积历史</text>
+
+          <line class="flow" x1="290" y1="300" x2="290" y2="360" marker-end="url(#ah)"/>
+          <text x="302" y="340" font-size="11" class="c-mut">写入暂存（先清空再插入）</text>
+
+          <!-- 并账脚本 -->
+          <rect class="b-proc" x="140" y="590" width="300" height="136" rx="10"/>
+          <text class="m-mono c-pine" x="290" y="616" text-anchor="middle" font-size="14.5" font-weight="600">merge.py</text>
+          <text x="160" y="642" font-size="12" class="c-ink">① 读 bank_flow（暂存）+ ledger（主表）</text>
+          <text x="160" y="660" font-size="12" class="c-ink">② 纯追加：以主表末行余额为锚续算</text>
+          <text x="160" y="678" font-size="12" class="c-ink">③ 出现补录（更早日期）→ 整段重排</text>
+          <text x="160" y="696" font-size="12" class="c-ink">④ 读完后清空暂存</text>
+
+          <line class="flow" x1="290" y1="518" x2="290" y2="582" marker-end="url(#ah)"/>
+          <text x="302" y="560" font-size="11" class="c-mut">并账：读主表 + 暂存</text>
+
+          <!-- ledger 主表 -->
+          <rect class="b-db" x="140" y="798" width="300" height="158" rx="10"/>
+          <rect class="b-head" x="140" y="798" width="300" height="32" rx="10"/>
+          <rect class="b-head" x="140" y="818" width="300" height="12"/>
+          <text class="m-mono c-head" x="160" y="820" font-size="13" font-weight="600">ledger</text>
+          <text x="424" y="820" text-anchor="end" font-size="11" class="c-head">主表 · 总台账</text>
+          <text class="m-mono c-ink" x="160" y="856" font-size="12">date  ·  project  ·  summary</text>
+          <text class="m-mono c-ink" x="160" y="878" font-size="12">income  ·  expense  ·  balance</text>
+          <text x="160" y="904" font-size="11.5" class="c-ink">普通追加：历史行余额保持不动</text>
+          <text x="160" y="924" font-size="11" class="c-faint">仅 init 全量重建 · 补录触发局部重算</text>
+
+          <line class="flow" x1="290" y1="726" x2="290" y2="790" marker-end="url(#ah)"/>
+          <text x="302" y="756" font-size="11" class="c-mut">纯追加（流水日期 ≥ 台账末日）</text>
+          <text x="302" y="774" font-size="11" class="c-mut">补录 → 从插入点整段重算</text>
+
+          <!-- 出口 -->
+          <rect class="b-file" x="140" y="1028" width="300" height="84" rx="10"/>
+          <text class="m-mono c-ink" x="290" y="1058" text-anchor="middle" font-size="14" font-weight="600">ledger.xlsx</text>
+          <text x="290" y="1084" text-anchor="middle" font-size="11.5" class="c-mut">导出给业务 / 或直接查库做报表</text>
+
+          <line class="flow" x1="290" y1="956" x2="290" y2="1020" marker-end="url(#ah)"/>
+          <text x="302" y="995" font-size="11" class="c-mut">导出 / 查询</text>
+
+          <!-- 左侧阶段编号 -->
+          <circle class="num" cx="118" cy="234" r="12"/><text class="numt" x="118" y="239" text-anchor="middle" font-size="13">1</text>
+          <circle class="num" cx="118" cy="443" r="12"/><text class="numt" x="118" y="448" text-anchor="middle" font-size="13">2</text>
+          <circle class="num" cx="118" cy="658" r="12"/><text class="numt" x="118" y="663" text-anchor="middle" font-size="13">3</text>
+          <circle class="num" cx="118" cy="877" r="12"/><text class="numt" x="118" y="882" text-anchor="middle" font-size="13">4</text>
+          <circle class="num" cx="118" cy="1070" r="12"/><text class="numt" x="118" y="1075" text-anchor="middle" font-size="13">5</text>
+        </svg>
+        <figcaption class="figcap">
+          <b>主流程怎么看：</b>银行流水 + 项目编码表 → <b>解析</b>成干净行 → 写进 <span class="mono">bank_flow</span> 暂存 →
+          <b>并账</b>把本期<b>追加</b>进 <span class="mono">ledger</span> 主表（末行余额为锚续算；补录才整段重排）→ 导出或直查。
+          <b>未识别项目</b>：照常入账并在第三张表 <span class="mono">unmatched</span> 留痕，补好映射后用 <span class="mono">ledger recheck</span> 只改项目名、不动余额（见第 03 节）。
+          一张 <span class="mono">project_map</span> 是唯一的“项目字典”，决定每笔钱记到哪个项目。
+        </figcaption>
+      </figure>
+    </div>
+  </section>
+
+  <!-- ================= 图 B ================= -->
+  <section>
+    <p class="kicker">02 · 首次建账</p>
+    <h2>开始循环前：先把历史台账灌进主表</h2>
+    <p class="sec-sub">主表不是空的开始。用 <code>ledger init</code> 把整理好的<b>历史总日记账</b>（<span class="mono">ledger_init.xlsx</span>）一次性灌进 <span class="mono">ledger</span>——这是唯一允许全量重建的入口。</p>
+
+    <div class="panel">
+      <figure>
+        <svg viewBox="0 0 900 200" role="img" aria-label="一次性初始化：ledger_init.xlsx 经 seed 灌入 ledger 主表（同时清空暂存与异常表）">
+          <style>
+            svg text{font-family:var(--sans);fill:var(--ink)}
+            .m-mono{font-family:var(--mono)}
+            .c-ink{fill:var(--ink)} .c-mut{fill:var(--muted)} .c-faint{fill:var(--faint)}
+            .c-pine{fill:var(--pineDeep)} .c-head{fill:var(--onHead)}
+            .b-file{fill:var(--amberSoft);stroke:var(--amberLine);stroke-width:1.4}
+            .b-proc{fill:var(--card);stroke:var(--pine);stroke-width:1.6}
+            .b-db{fill:var(--pineSoft);stroke:var(--pine);stroke-width:1.6}
+            .b-head{fill:var(--headBg)}
+            .flow{stroke:var(--pine);stroke-width:1.6;fill:none}
+          </style>
+          <defs>
+            <marker id="ahb" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6.5" markerHeight="6.5" orient="auto-start-reverse">
+              <path d="M0,0 L10,5 L0,10 z" style="fill:var(--pine)"/>
+            </marker>
+          </defs>
+
+          <text x="60" y="36" font-size="11.5" class="m-mono c-pine">ledger init · 仅在首次建账 / 历史变动时执行（清空主表、暂存、异常表后重建）</text>
+
+          <rect class="b-file" x="60" y="84" width="260" height="102" rx="10"/>
+          <text class="m-mono c-ink" x="190" y="118" text-anchor="middle" font-size="13.5" font-weight="600">ledger_init.xlsx</text>
+          <text x="190" y="144" text-anchor="middle" font-size="11.5" class="c-mut">三分资金收支日记账 sheet</text>
+          <text x="190" y="166" text-anchor="middle" font-size="11" class="c-faint">表头第 3 行 · 读列 B:H · 历史快照</text>
+
+          <rect class="b-proc" x="380" y="84" width="220" height="102" rx="10"/>
+          <text class="m-mono c-pine" x="490" y="120" text-anchor="middle" font-size="14" font-weight="600">seed.py</text>
+          <text x="396" y="152" font-size="11.5" class="c-ink">中文列名 → 英文字段</text>
+          <text x="396" y="171" font-size="11.5" class="c-ink">保留源「资金净额」为余额</text>
+
+          <rect class="b-db" x="640" y="84" width="200" height="102" rx="10"/>
+          <rect class="b-head" x="640" y="84" width="200" height="26" rx="10"/>
+          <rect class="b-head" x="640" y="98" width="200" height="12"/>
+          <text class="m-mono c-head" x="740" y="103" text-anchor="middle" font-size="13" font-weight="600">ledger</text>
+          <text x="740" y="140" text-anchor="middle" font-size="11.5" class="c-ink">主表初值灌入</text>
+          <text x="740" y="160" text-anchor="middle" font-size="11" class="c-faint">字段与主循环一致</text>
+
+          <line class="flow" x1="320" y1="135" x2="378" y2="135" marker-end="url(#ahb)"/>
+          <text x="352" y="74" text-anchor="middle" font-size="11" class="c-mut">读历史快照</text>
+
+          <line class="flow" x1="600" y1="135" x2="638" y2="135" marker-end="url(#ahb)"/>
+          <text x="620" y="74" text-anchor="middle" font-size="11" class="c-mut">重建主表（清空后灌入）</text>
+        </svg>
+        <figcaption class="figcap">
+          <b>顺序建议：</b>先 <code>ledger init</code>（把历史总账灌进 <span class="mono">ledger</span>），之后每一期都只需跑上面的<b>主循环</b>。
+          <span class="mono">ledger_init.xlsx</span> 本身是整理好的总日记账——早期由一次性脚本 <span class="mono">clean_ledger.py</span> 从几十个项目分 sheet 汇总而来，那个脚本已随本次重构删除（只跑过一回，无需保留）。
+        </figcaption>
+      </figure>
+    </div>
+  </section>
+
+  <!-- ================= 五步拆解 ================= -->
+  <section>
+    <p class="kicker">03 · 逐步拆解</p>
+    <h2>五个动作，一次“本期并账”</h2>
+    <p class="sec-sub">与主循环图一一对应（代码都在 <code>src/ledger_etl/</code>）。暂存为空时并账会直接跳过；<b>同一份流水请勿重复 <code>run</code></b>（暂未做去重）。</p>
+
+    <div class="steps">
+      <div class="step">
+        <div class="no">1</div>
+        <div><h3>解析银行流水 <span class="fn">parse_bank_flow.py</span> <span class="cmd">ledger audit / run</span></h3>
+          <p>读 <code>bank_flow.xlsx</code> 和 <code>project_map.xlsx</code>：把收款/付款金额、<code>YYYYMMDD</code> 日期标准化；在每条摘要里扫描是否包含某个<b>项目编码</b>，命中就标成对应项目（<code>1220153829#百家坊项目…</code> → 百家坊未来社区），都没命中则记为 <code>“未识别项目”</code>；再按“收到 / 支付 + 流水类型”规整出最终摘要；最后按 <b>日期 + 项目 + 摘要</b> 求和，把同一笔拆成多行、或带重复文本的流水并成一条。</p></div>
+      </div>
+      <div class="step">
+        <div class="no">2</div>
+        <div><h3>写入暂存表 <span class="tbl">bank_flow</span></h3>
+          <p>清空后再整批插入，表中只装<b>本期</b>解析结果，与“入账”解耦。注意：它只隔离“解析”与“并账”，<b>本身不防重复</b>——同一流水文件跑两遍会重复入账（见文末取舍）。</p></div>
+      </div>
+      <div class="step">
+        <div class="no">3</div>
+        <div><h3>并账：追加到主表末尾 <span class="fn">merge.py</span></h3>
+          <p>读 <code>bank_flow</code> + <code>ledger</code>。普通情况 = <b>纯追加</b>：以主表<b>末行余额</b>为锚，按流水顺序逐行 <code>余额 = 上期余额 + 收 − 支</code>，历史行一律不动；暂存为空则跳过。若本期里有<b>早于台账末日</b>的补录，则从补录点起整段重排重算（补录点之后的余额随之更新，属预期）。</p></div>
+      </div>
+      <div class="step">
+        <div class="no">4</div>
+        <div><h3>写回主表 <span class="tbl">ledger</span> <span class="cmd">ledger run</span></h3>
+          <p>新行（含各自的余额）插入主表末尾；补录情况则重排受影响段后写回。最后清空 <code>bank_flow</code> 暂存，回到待机状态，等下期流水。主表即“历史 + 最新一期”的完整台账。</p></div>
+      </div>
+      <div class="step">
+        <div class="no">5</div>
+        <div><h3>交付 <span class="tbl">ledger.xlsx</span> <span class="cmd">ledger export-ledger</span></h3>
+          <p>从 <code>ledger</code> 导出 Excel 给业务，或本地网页 <code>ledger serve</code> 上传后预览 / 下载。<b>“本期并账”完成。</b></p></div>
+      </div>
+    </div>
+
+    <div style="height:14px"></div>
+
+    <div class="callout">
+      <b>未识别项目怎么办（补映射 → 修正历史）：</b>
+      <p><code>ledger audit</code>（干跑）或 <code>ledger run</code> 会把“未识别项目”的原始行写进 <code>unmatched</code> 表待人工核查 →
+      <code>ledger export-audit</code> 导出来核对 → 在 <code>project_map.xlsx</code> 补上编码 →
+      <code>ledger recheck --map 新映射.xlsx</code>：重新匹配，<b>只把主表对应行的项目名改掉，不动金额与余额</b>，并把该异常标为已解决。</p>
+    </div>
+  </section>
+
+  <!-- ================= 库表 + 字段映射 ================= -->
+  <section>
+    <p class="kicker">04 · 字段对照</p>
+    <h2>中文 Excel 列，怎么落成数据库字段</h2>
+    <p class="sec-sub">这是整个映射的关键一张表：银行流水原始 12 列，只取 5 列有用信息，其余（时间、流水号、对方账户…）不进账。金额全程按 2 位小数收敛。</p>
+
+    <div class="panel">
+      <table>
+        <thead><tr><th>银行流水原始列</th><th>解析时做什么</th><th>落库字段</th><th>说明</th></tr></thead>
+        <tbody>
+          <tr><td><span class="tag-src">交易日期</span>  <span class="mono">20260429</span></td>
+              <td>int / <code>%Y%m%d</code> → 统一 ISO</td>
+              <td><span class="tag-out">date</span> <span class="mono">TEXT 'YYYY-MM-DD'</span></td><td>付款发生日</td></tr>
+          <tr><td><span class="tag-src">收款金额</span> / <span class="tag-src">付款金额</span></td>
+              <td>取数 + <code>round2</code></td>
+              <td><span class="tag-out">income</span> / <span class="tag-out">expense</span> <span class="mono">REAL(2位)</span></td><td>方向拆成两列，余额就能滚算</td></tr>
+          <tr><td><span class="tag-src">摘要</span> <span class="mono">“1220153829#百家坊…”</span></td>
+              <td>扫描内置<b>项目编码</b>，去 <code>project_map</code> 里查</td>
+              <td><span class="tag-out">project</span> <span class="mono">TEXT</span></td><td>找不到 → “未识别项目”兜底，不丢行并留痕</td></tr>
+          <tr><td><span class="tag-src">流水类型</span> <span class="mono">工程款</span></td>
+              <td>有收→“收到+类型”；有支→“支付+类型”</td>
+              <td><span class="tag-out">summary</span> <span class="mono">TEXT</span></td><td>直接可读的摘要</td></tr>
+          <tr><td>—（无）</td>
+              <td><code>groupby(日期+项目+摘要).sum()</code></td>
+              <td>行级聚合</td><td>一笔拆多行 → 并成一条，账上不重复</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div style="height:14px"></div>
+
+    <p class="sec-sub">历史快照那边同样有张“翻译表”，由 <span class="mono">seed.py</span>（<code>ledger init</code>）处理：日记账 sheet（表头第 3 行、列 B:H）里的 <code>日期 → date、项目 → project、摘要 → summary、收 → income、支 → expense、资金净额 → balance</code>，去空行、去序号后整批重建入库。</p>
+
+    <div class="grid2" style="margin-top:6px">
+      <div class="card2">
+        <h3><span class="tblname">bank_flow</span> · 暂存表</h3>
+        <div class="ddl">id      INTEGER PK AUTOINCREMENT
+date    TEXT   -- 'YYYY-MM-DD'
+project TEXT
+summary TEXT
+income  REAL   -- 2 位小数
+expense REAL   -- 2 位小数</div>
+        <ul class="tight"><li>生命周期 = 单次运行：<b>装本期 → 被并账读走 → 清空</b></li></ul>
+      </div>
+      <div class="card2">
+        <h3><span class="tblname">ledger</span> · 主表（总台账）</h3>
+        <div class="ddl">id      INTEGER PK AUTOINCREMENT
+date    TEXT
+project TEXT
+summary TEXT
+income  REAL
+expense REAL
+balance REAL   -- 滚动余额</div>
+        <ul class="tight"><li>普通导入＝<b>追加</b>，历史余额不动</li>
+        <li>仅 <code>ledger init</code> 整表重建；补录触发局部重算</li></ul>
+      </div>
+      <div class="card2">
+        <h3><span class="tblname">unmatched</span> · 未识别异常表</h3>
+        <div class="ddl">id           INTEGER PK
+date         TEXT
+summary_orig TEXT  -- 原始银行摘要(含编码)
+agg_summary  TEXT  -- 其折叠进的台账摘要
+income/expense     REAL
+agg_income/expense REAL
+status       TEXT  -- open|resolved|conflict
+project      TEXT</div>
+        <ul class="tight"><li>run/audit 时给“未识别项目”逐条<b>留痕</b></li>
+        <li>补映射后 <code>ledger recheck</code> 匹配并修正主表、标 resolved</li>
+        <li>导出清单给人工核对（<code>ledger export-audit</code>）</li></ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= 演进 ================= -->
+  <section>
+    <p class="kicker">05 · 演进与现状</p>
+    <h2>这个项目是怎么一步步长成今天这样的</h2>
+    <p class="sec-sub">三月份从“Excel 手工整理”起步，几经换代到现在这套本地化“脚本 + SQLite + 网页”。按 git 历史还原的路径：</p>
+
+    <div class="timeline">
+      <div class="tl">
+        <div class="when">起源 · Excel 手工整理</div>
+        <h4>把几十个项目 sheet 汇总成一册日记账</h4>
+        <p>原始大台账 <code>项目台账0228.xlsx</code> 每个项目占一个 sheet、表头在第 3 行。<code>clean_ledger.py</code> 跳过“融资/上缴/各年累计收款”等汇总 sheet、逐项目读取 → 合并 → 排序 → 重算余额 → 得到一册整理好的总日记账（即后来入库的历史快照 <code>ledger_init.xlsx</code>）。该脚本<b>一次性使用，已删除</b>。</p>
+      </div>
+      <div class="tl">
+        <div class="when">中期 · Flask 网页版（Excel 进 / Excel 出）</div>
+        <h4>浏览器上传 → 下载更新后的 ledger.xlsx（无数据库）</h4>
+        <p>调 <code>parse_bank_flow</code> → <code>update_ledger</code> 直接在内存合成并返回文件。<code>app.py / templates / static / render.yaml</code> 都是这一版。README 曾描述的就是这套；现已随重构删除。</p>
+      </div>
+      <div class="tl">
+        <div class="when">之后 · MySQL 入库版</div>
+        <h4>加了一层 MySQL：暂存表 + 主表</h4>
+        <p><code>bank_flow</code>/<code>ledger</code> 两张表 + <code>pymysql</code>，把解析结果写暂存、并入主表。依赖本机 MySQL 服务、密码明文写死在代码里——这也是本次想改掉的地方。</p>
+      </div>
+      <div class="tl">
+        <div class="when">本次重构 · 本地化（当前，改动未提交）</div>
+        <h4>src 统一代码 + SQLite + FastAPI 本地端 + 异常修正流程</h4>
+        <p>代码收进 <code>src/ledger_etl/</code>（路径与 cwd 无关）；存储换成 <b>SQLite（data/ledger.db）</b>并加第三张 <code>unmatched</code> 异常表；并账改成<b>纯追加</b>（普通导入不再整表重写历史，只有补录才局部重算）；网页端换成 <b>FastAPI</b> 本地 <code>serve</code>，删去 Flask / render.yaml / gunicorn；补了 <code>audit / recheck / export</code> 等命令和 <b>pytest</b>（30 项）。<code>fund_etl</code> 里那套“分公司分组行 + 表头错行”的清洗被收编为 <code>cleaner.py</code>（未接入管道）。</p>
+      </div>
+    </div>
+
+    <div style="height:18px"></div>
+
+    <div class="callout">
+      <b>现在怎么跑（本地单机）：</b>
+      <p class="cmds">pip install -e ".[dev]"<br>
+ledger init                                  # 建库：从 data/raw/ledger_init.xlsx 灌历史<br>
+ledger run  data/raw/bank_flow.xlsx          # 本期并账（入库为主）<br>
+ledger audit data/raw/bank_flow.xlsx         # （可选）干跑看未识别<br>
+ledger recheck --map &lt;新映射.xlsx&gt;          # 补映射后修正历史项目<br>
+ledger export-ledger --out ledger.xlsx       # 交付下载<br>
+ledger serve                                 # http://127.0.0.1:8000</p>
+      <p>改动均未提交；<code>data/ledger.db</code> 在你第一次 <code>ledger init</code> 时才生成（gitignore）。已知取舍：同一份流水<b>别重复 run</b>（暂未做去重）。</p>
+    </div>
+  </section>
+
+</div>
