@@ -4,4 +4,4 @@
 CLI: python -m ledger_etl <init|run|audit|recheck|export-ledger|export-audit|serve>
 """
 
-__version__ = "0.1.0"
+__version__ = "0.3.0"

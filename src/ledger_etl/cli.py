@@ -99,6 +99,26 @@ def cmd_recheck(args, s: Settings) -> int:
     return 0
 
 
+def cmd_query(args, s: Settings) -> int:
+    from .nl2sql import query_nl
+
+    r = query_nl(args.question, s)
+    print(f"问题：{r.text}")
+    if r.note:
+        print("说明：", r.note)
+    print("SQL：")
+    print(r.sql)
+    print(f"-- 共 {r.row_count} 行 · {r.elapsed_ms} ms（只读查询）--")
+    if r.columns:
+        import pandas as pd
+
+        df = pd.DataFrame(r.rows, columns=r.columns)
+        print(df.to_string(index=False, max_rows=50))
+    else:
+        print("(无返回列)")
+    return 0
+
+
 def cmd_export_ledger(args, s: Settings) -> int:
     from .export import ledger_to_xlsx_bytes
 
@@ -152,6 +172,10 @@ def build_parser() -> argparse.ArgumentParser:
     q = sub.add_parser("recheck", help="用(更新后的)映射重新匹配未识别项目并修正主表")
     q.add_argument("--map", help="新的项目编码映射 xlsx（缺省用默认映射）")
     q.set_defaults(func=cmd_recheck)
+
+    q = sub.add_parser("query", help="自然语言查询：NL2SQL 生成只读 SQL 并执行（需 DEEPSEEK_API_KEY）")
+    q.add_argument("question", help='查询问题，如 "2026年4月各项目支出合计"')
+    q.set_defaults(func=cmd_query)
 
     q = sub.add_parser("export-ledger", help="导出主表为 ledger.xlsx")
     q.add_argument("--out", help="输出路径（缺省 data/processed/ledger.xlsx）")

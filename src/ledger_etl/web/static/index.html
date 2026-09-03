@@ -7,94 +7,271 @@
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
-<main class="wrap">
-  <header>
-    <h1>资金台账自动化</h1>
-    <p class="sub">上传本期银行流水 → 自动解析并入账（SQLite 主表）→ 可预览 / 下载最新台账。</p>
-  </header>
 
-  <section class="card">
-    <form id="uploadForm">
-      <label for="bank_flow">银行流水（Excel，必选）</label>
-      <input id="bank_flow" name="bank_flow" type="file" accept=".xlsx,.xls" required>
+<div class="shell">
 
-      <label for="project_map">项目编码映射（可选，缺省用服务端 data/config/project_map.xlsx）</label>
-      <input id="project_map" name="project_map" type="file" accept=".xlsx,.xls">
+  <!-- ======== 最左：功能导航 ======== -->
+  <aside class="rail">
+    <div class="brand">资金台账自动化<small>ledger · 本地库 data/ledger.db</small></div>
 
-      <button type="submit">解析并入库</button>
-    </form>
-    <div id="msg" class="msg" hidden></div>
-  </section>
+    <button class="navi active" data-tab="run">
+      <span class="no">1</span><span class="tx">并账入库<small>上传银行流水 → 并入主表</small></span>
+    </button>
+    <button class="navi" data-tab="query">
+      <span class="no">2</span><span class="tx">自然语言查询<small>问一句 → SQL → 只读执行</small></span>
+    </button>
+    <button class="navi" data-tab="view">
+      <span class="no">3</span><span class="tx">台账浏览 / 导出<small>查看主表、未识别、下载</small></span>
+    </button>
 
-  <section id="result" hidden>
-    <div id="stats" class="stats"></div>
+    <div class="foot">查询为只读连接 · SQL 自动只读校验</div>
+  </aside>
 
-    <div class="tools">
-      <a id="dlLedger" class="btn" href="/downloads/ledger.xlsx">⬇ 下载最新台账 ledger.xlsx</a>
-      <a id="dlAudit" class="btn alt" href="/downloads/audit.xlsx">⬇ 未识别清单</a>
+  <!-- ======== 中间：内容区（随导航切换） ======== -->
+  <main class="stage">
+
+    <!-- 1 并账入库 -->
+    <section class="tab active" id="tab-run">
+      <h2>① 并账入库</h2>
+      <p class="note">上传本期银行流水，自动解析、识别项目并<b>纯追加</b>进 SQLite 主表、续算余额。历史行不动。</p>
+
+      <label class="f" for="bank_flow">银行流水（Excel，必选）</label>
+      <input id="bank_flow" type="file" accept=".xlsx,.xls">
+      <label class="f" for="project_map">项目编码映射（可选，缺省用服务端 data/config/project_map.xlsx）</label>
+      <input id="project_map" type="file" accept=".xlsx,.xls">
+
+      <div class="row"><button id="runBtn">解析并入库</button></div>
+      <div id="runMsg" class="msg" hidden></div>
+
+      <div id="runRes" hidden>
+        <div class="grid4">
+          <div class="tile"><b id="rAgg">0</b><span>聚合写入</span></div>
+          <div class="tile"><b id="rApp">0</b><span>本期追加行</span></div>
+          <div class="tile"><b id="rRows">0</b><span>主表总行数</span></div>
+          <div class="tile"><b id="rBal">0</b><span>最新余额</span></div>
+        </div>
+        <div class="statline">原始 <b id="rRaw">0</b> 行 → 聚合 <b id="rAgg2">0</b> 条；未识别待处理 <b id="rUm">0</b> 条（可到 ③ 查看/导出）</div>
+        <div class="dl">
+          <a class="btn gray" href="/downloads/ledger.xlsx">⬇ 下载最新台账</a>
+          <a class="btn gray" href="/downloads/audit.xlsx">⬇ 未识别清单</a>
+        </div>
+      </div>
+    </section>
+
+    <!-- 2 自然语言查询 -->
+    <section class="tab" id="tab-query">
+      <h2>② 自然语言查询</h2>
+      <p class="note">输入一句中文 → 调大模型生成 SQL → 在<strong>只读连接</strong>执行 → 结果展示在下方。
+        示例问题都按“库内数据范围”（当前 2020-08 ~ 2026-03）给好，可直接点。</p>
+
+      <div class="chips">
+        <button type="button" class="chipq" data-q="各项目支出合计（全部期间，从大到小）">各项目累计支出</button>
+        <button type="button" class="chipq" data-q="2026年3月各项目支出合计">3月各项目支出</button>
+        <button type="button" class="chipq" data-q="2026-02-28 各项目的资金净额">某日各项目净额</button>
+        <button type="button" class="chipq" data-q="主表最近10笔流水">最近 10 笔</button>
+      </div>
+
+      <input id="qInput" type="text" placeholder="例如：百家坊未来社区 2026 年 3 月支付了多少工程款？">
+      <div class="row"><button id="qRun">生成并查询</button></div>
+      <div id="qMsg" class="msg" hidden></div>
+
+      <div id="qRes" hidden>
+        <label class="f" for="qSql">生成的 SQL（可编辑，改完点“只读执行”）</label>
+        <textarea id="qSql" class="sqlbox" spellcheck="false"></textarea>
+        <div class="row"><button id="qExec" class="btn gray">只读执行</button></div>
+        <div id="qMeta" class="statline"></div>
+        <div class="tbl-scroll"><table id="qTable"><thead></thead><tbody></tbody></table></div>
+      </div>
+    </section>
+
+    <!-- 3 台账浏览/导出 -->
+    <section class="tab" id="tab-view">
+      <h2>③ 台账浏览 / 导出</h2>
+      <p class="note">对主表 / 未识别表做只读浏览（同样经只读 SQL 校验），或导出 Excel 给业务。</p>
+
+      <div class="row">
+        <button id="bTail" class="btn line">加载台账尾部 20 行</button>
+        <button id="bUm" class="btn line">查看未识别（待处理）</button>
+        <button id="bAll" class="btn line">主表最近 200 行</button>
+        <a class="btn sm" href="/downloads/ledger.xlsx">⬇ ledger.xlsx</a>
+        <a class="btn sm" href="/downloads/audit.xlsx">⬇ 未识别清单</a>
+      </div>
+
+      <div id="vMeta" class="statline"></div>
+      <div class="tbl-scroll"><table id="tTable"><thead></thead><tbody></tbody></table></div>
+    </section>
+  </main>
+
+  <!-- ======== 右侧：库速览 / 导出 / 说明 ======== -->
+  <aside class="side">
+    <div class="card">
+      <h3><span class="dot"></span> 库速览</h3>
+      <div class="kv"><span>主表行数</span><b id="sRows">–</b></div>
+      <div class="kv"><span>日期范围</span><b id="sRange">–</b></div>
+      <div class="kv"><span>最新余额</span><b id="sBal">–</b></div>
+      <div class="kv"><span>未识别待处理</span><b id="sUm">–</b></div>
+      <div class="kv"><span>刷新于</span><b id="sAt">–</b></div>
+      <div class="row"><button id="sRefresh" class="btn line sm">刷新统计</button></div>
     </div>
 
-    <h2>主表尾部预览</h2>
-    <div class="scroll">
-      <table id="preview">
-        <thead><tr><th>日期</th><th>项目</th><th>摘要</th><th>收</th><th>支</th><th>余额</th></tr></thead>
-        <tbody></tbody>
-      </table>
+    <div class="card">
+      <h3>导出</h3>
+      <div class="dl" style="flex-direction:column">
+        <a class="btn gray sm" href="/downloads/ledger.xlsx">⬇ 最新台账 ledger.xlsx</a>
+        <a class="btn gray sm" href="/downloads/audit.xlsx">⬇ 未识别清单.xlsx</a>
+      </div>
     </div>
-    <p id="unmatched" class="muted"></p>
-  </section>
-</main>
+
+    <div class="card">
+      <h3>小贴士</h3>
+      <div style="font-size:12.5px;color:var(--muted);line-height:1.7">
+        <p style="margin:0 0 6px">· 同一份流水别重复“并账”（暂未去重）。</p>
+        <p style="margin:0 0 6px">· 含早于台账末日的历史补录会在插入点后重算。</p>
+        <p style="margin:0 0 6px">· “某日某项目净额”是按项目累计，不是 balance 列。</p>
+        <p style="margin:0">· NL2SQL 需 <code>DEEPSEEK_API_KEY</code>；查库一律只读。</p>
+      </div>
+    </div>
+  </aside>
+</div>
+
 <script>
 const $ = (id) => document.getElementById(id);
-const fmt = (n) => (n == null ? "" : Number(n).toLocaleString("zh-CN", {minimumFractionDigits: 2, maximumFractionDigits: 2}));
+const fmtN = (n) => (n == null ? "" : Number(n).toLocaleString("zh-CN", {maximumFractionDigits: 2}));
+const fmtM = (n) => (n == null ? "" : Number(n).toLocaleString("zh-CN", {minimumFractionDigits: 2, maximumFractionDigits: 2}));
+const esc = (x) => String(x).replace(/[&<>"]/g, (c) => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
 
-$("uploadForm").addEventListener("submit", async (e) => {
-  e.preventDefault();
-  const msg = $("msg");
-  msg.hidden = true;
-  const form = new FormData($("uploadForm"));
-  const btn = $("uploadForm").querySelector("button");
-  btn.disabled = true; btn.textContent = "处理中…";
-  try {
-    const r = await fetch("/api/run", {method: "POST", body: form});
-    const data = await r.json();
-    if (!r.ok) { showMsg("处理失败：" + (data.detail || "未知错误"), true); return; }
-    render(data);
-  } catch (err) {
-    showMsg("请求出错：" + err, true);
-  } finally {
-    btn.disabled = false; btn.textContent = "解析并入库";
+async function postJSON(url, body) {
+  const r = await fetch(url, {method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify(body)});
+  const d = await r.json().catch(() => ({}));
+  return {ok: r.ok, d};
+}
+function msgTo(id, text, isErr) {
+  const el = $(id); el.textContent = text; el.hidden = false;
+  el.className = "msg " + (isErr ? "err" : "ok");
+}
+function fillTable(tableEl, columns, rows, cap) {
+  const thead = tableEl.querySelector("thead"), tbody = tableEl.querySelector("tbody");
+  const cols = columns || [], shown = (rows || []).slice(0, cap || 200);
+  thead.innerHTML = "<tr>" + cols.map((c) => "<th>" + esc(c) + "</th>").join("") + "</tr>";
+  tbody.textContent = "";
+  if (!cols.length) {
+    tbody.innerHTML = "<tr><td class='empty'>(无返回列)</td></tr>";
+    return;
   }
+  for (const r of shown) {
+    const tr = document.createElement("tr");
+    for (const v of r) {
+      const td = document.createElement("td");
+      td.textContent = (v == null) ? "" : String(v);
+      if (typeof v === "number") td.className = "num";
+      tr.appendChild(td);
+    }
+    tbody.appendChild(tr);
+  }
+  if (!shown.length) tbody.innerHTML = "<tr><td class='empty' colspan='" + cols.length + "'>(0 行结果)</td></tr>";
+  else if (rows.length > shown.length)
+    tbody.innerHTML += "<tr><td class='empty' colspan='" + cols.length + "'>… 仅显示前 " + shown.length + " / 共 " + rows.length + " 行</td></tr>";
+}
+
+/* ===== 左侧导航切换 ===== */
+document.querySelectorAll(".navi").forEach((b) =>
+  b.addEventListener("click", () => {
+    document.querySelectorAll(".navi").forEach((x) => x.classList.toggle("active", x === b));
+    document.querySelectorAll(".tab").forEach((t) => t.classList.toggle("active", t.id === "tab-" + b.dataset.tab));
+  })
+);
+
+/* ===== 右侧库速览（只读统计） ===== */
+async function sql1(sql) { return (await postJSON("/api/sql-run", {sql})).d; }
+async function refreshStats() {
+  $("sAt").textContent = new Date().toLocaleTimeString();
+  const cnt = await sql1("SELECT COUNT(*) AS n FROM ledger");
+  if (!cnt.ok) { $("sRows").textContent = "–"; $("sBal").textContent = cnt.detail || "未建库"; return; }
+  $("sRows").textContent = fmtN(cnt.rows[0][0]);
+  const range = await sql1("SELECT MIN(date), MAX(date) FROM ledger");
+  if (range.ok && range.rows[0] && range.rows[0][0]) $("sRange").textContent = range.rows[0][0] + " ~ " + range.rows[0][1];
+  const last = await sql1("SELECT date, balance FROM ledger ORDER BY date DESC, id DESC LIMIT 1");
+  if (last.ok && last.rows.length) $("sBal").textContent = fmtM(last.rows[0][1]);
+  const um = await sql1("SELECT COUNT(*) AS n FROM unmatched WHERE status != 'resolved'");
+  if (um.ok) $("sUm").textContent = um.rows[0][0];
+}
+$("sRefresh").addEventListener("click", refreshStats);
+
+/* ===== 1 并账入库 ===== */
+$("runBtn").addEventListener("click", async () => {
+  const bf = $("bank_flow").files[0];
+  if (!bf) { msgTo("runMsg", "请选择银行流水文件", true); return; }
+  const btn = $("runBtn"); btn.disabled = true; btn.textContent = "处理中…";
+  msgTo("runMsg", "正在解析并入库…", false);
+  const fd = new FormData();
+  fd.append("bank_flow", bf, bf.name);
+  if ($("project_map").files[0]) fd.append("project_map", $("project_map").files[0]);
+  try {
+    const r = await fetch("/api/run", {method: "POST", body: fd});
+    const d = await r.json().catch(() => ({}));
+    if (!r.ok) { msgTo("runMsg", "处理失败：" + (d.detail || "未知错误"), true); return; }
+    const m = d.merged;
+    $("rRaw").textContent = d.raw_rows; $("rAgg").textContent = d.agg_rows; $("rAgg2").textContent = d.agg_rows;
+    $("rApp").textContent = m.appended; $("rRows").textContent = m.ledger_rows;
+    $("rBal").textContent = fmtM(m.latest_balance); $("rUm").textContent = d.unmatched.pending;
+    $("runRes").hidden = false;
+    msgTo("runMsg", "✓ 并账完成", false);
+    refreshStats();
+  } catch (e) { msgTo("runMsg", "请求出错：" + e, true); }
+  finally { btn.disabled = false; btn.textContent = "解析并入库"; }
 });
 
-function showMsg(text, isError) {
-  const m = $("msg");
-  m.textContent = text;
-  m.hidden = false;
-  m.className = "msg " + (isError ? "err" : "ok");
+/* ===== 2 自然语言查询 ===== */
+function showQuery(res, tag) {
+  $("qMsg").hidden = true;
+  $("qSql").value = res.sql || "";
+  let meta = "[" + new Date().toLocaleTimeString() + "] " + tag + "：共 " + res.row_count + " 行 · " + res.elapsed_ms + " ms";
+  if (res.note) meta += "　" + res.note;
+  if (!res.row_count) meta += "　（0 行：该期间库内可能没有数据，可到 ① 先并账对应月份）";
+  $("qMeta").textContent = meta;
+  fillTable($("qTable"), res.columns, res.rows, 200);
+  $("qRes").hidden = false;
 }
+$("qRun").addEventListener("click", async () => {
+  try {
+    const text = $("qInput").value.trim();
+    if (!text) { msgTo("qMsg", "请输入查询问题", true); return; }
+    msgTo("qMsg", "正在调用大模型生成 SQL 并只读执行…", false);
+    const {ok, d} = await postJSON("/api/query", {text});
+    if (!ok) { msgTo("qMsg", "查询失败：" + (d.detail || "未知错误"), true); return; }
+    showQuery(d, "生成并查询");
+  } catch (e) { msgTo("qMsg", "请求出错：" + e, true); }
+});
+$("qExec").addEventListener("click", async () => {
+  try {
+    const sql = $("qSql").value.trim();
+    if (!sql) { msgTo("qMsg", "SQL 为空", true); return; }
+    msgTo("qMsg", "正在只读执行…", false);
+    const {ok, d} = await postJSON("/api/sql-run", {sql});
+    if (!ok) { msgTo("qMsg", "执行失败：" + (d.detail || "未知错误"), true); return; }
+    showQuery(d, "重新执行");
+  } catch (e) { msgTo("qMsg", "请求出错：" + e, true); }
+});
+document.querySelectorAll(".chipq").forEach((b) =>
+  b.addEventListener("click", () => { $("qInput").value = b.dataset.q; $("qRun").click(); })
+);
 
-function render(d) {
-  const m = d.merged;
-  $("stats").innerHTML =
-    `<div class="stat"><b>${d.agg_rows}</b><span>聚合写入 ${d.raw_rows} 原始行</span></div>` +
-    `<div class="stat"><b>${m.appended}</b><span>本期并入 ${m.ledger_rows} 行主表</span></div>` +
-    `<div class="stat"><b>${fmt(m.latest_balance)}</b><span>最新余额</span></div>` +
-    `<div class="stat"><b>${d.unmatched.pending}</b><span>未识别待处理</span></div>`;
-
-  const tb = $("preview").querySelector("tbody");
-  tb.innerHTML = d.preview.map(r =>
-    `<tr><td>${r.date}</td><td>${r.project}</td><td>${r.summary}</td>` +
-    `<td class="num">${r.income ? fmt(r.income) : ""}</td>` +
-    `<td class="num">${r.expense ? fmt(r.expense) : ""}</td>` +
-    `<td class="num">${fmt(r.balance)}</td></tr>`).join("");
-
-  $("unmatched").textContent = d.unmatched.pending
-    ? `本次有 ${d.unmatched.inserted} 条新未识别记录（累计待处理 ${d.unmatched.pending}）。下载「未识别清单」核对后补映射，再运行 recheck 修正。`
-    : "";
-  $("result").hidden = false;
-  $("result").scrollIntoView({behavior: "smooth"});
+/* ===== 3 台账浏览 ===== */
+async function viewRun(sql, tag) {
+  const {ok, d} = await postJSON("/api/sql-run", {sql});
+  if (!ok) { $("vMeta").textContent = "查询失败：" + (d.detail || ""); return; }
+  $("vMeta").textContent = tag + "：共 " + d.row_count + " 行";
+  fillTable($("tTable"), d.columns, d.rows, 200);
 }
+$("bTail").addEventListener("click", () =>
+  viewRun("SELECT * FROM ledger ORDER BY date DESC, id DESC LIMIT 20", "台账尾部 20 行"));
+$("bAll").addEventListener("click", () =>
+  viewRun("SELECT * FROM ledger ORDER BY date DESC, id DESC LIMIT 200", "主表最近 200 行"));
+$("bUm").addEventListener("click", () =>
+  viewRun("SELECT id, date, project, agg_summary, income, expense, status FROM unmatched WHERE status != 'resolved' ORDER BY id",
+          "未识别（待处理）"));
+
+refreshStats();
 </script>
 </body>
 </html>

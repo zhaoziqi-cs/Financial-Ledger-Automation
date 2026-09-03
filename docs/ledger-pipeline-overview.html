@@ -466,6 +466,11 @@ project      TEXT</div>
         <h4>src 统一代码 + SQLite + FastAPI 本地端 + 异常修正流程</h4>
         <p>代码收进 <code>src/ledger_etl/</code>（路径与 cwd 无关）；存储换成 <b>SQLite（data/ledger.db）</b>并加第三张 <code>unmatched</code> 异常表；并账改成<b>纯追加</b>（普通导入不再整表重写历史，只有补录才局部重算）；网页端换成 <b>FastAPI</b> 本地 <code>serve</code>，删去 Flask / render.yaml / gunicorn；补了 <code>audit / recheck / export</code> 等命令和 <b>pytest</b>（30 项）。<code>fund_etl</code> 里那套“分公司分组行 + 表头错行”的清洗被收编为 <code>cleaner.py</code>（未接入管道）。</p>
       </div>
+      <div class="tl">
+        <div class="when">再往后 · NL2SQL + 三栏网页 + 可分享 skill（改动未提交）</div>
+        <h4>在库里“用一句话问数”，并整成 Claude Code skill</h4>
+        <p>网页端改成<b>三栏</b>：最左＝功能导航（① 并账入库 ② 自然语言查询 ③ 台账浏览/导出），中间＝当前功能的内容区，右侧＝常驻“库速览 / 导出 / 说明”。新增 <b>NL2SQL</b>：在 ② 输入中文问题 → 调 DeepSeek（OpenAI 兼容，key 取 <code>DEEPSEEK_API_KEY</code>）生成 SQL → 服务端清洗并校验<b>只读</b> → 在只读连接执行 → 结果就显示在按钮下方（SQL 可编辑、可“只读执行”重跑）；CLI 对应 <code>ledger query "…"</code>。项目自带 <b>可分享的 skill</b>：<code>.claude/skills/ledger/</code>（<code>SKILL.md</code> + <code>references/schema.md</code>，见第 06 节）。</p>
+      </div>
     </div>
 
     <div style="height:18px"></div>
@@ -478,9 +483,48 @@ ledger run  data/raw/bank_flow.xlsx          # 本期并账（入库为主）<br
 ledger audit data/raw/bank_flow.xlsx         # （可选）干跑看未识别<br>
 ledger recheck --map &lt;新映射.xlsx&gt;          # 补映射后修正历史项目<br>
 ledger export-ledger --out ledger.xlsx       # 交付下载<br>
-ledger serve                                 # http://127.0.0.1:8000</p>
-      <p>改动均未提交；<code>data/ledger.db</code> 在你第一次 <code>ledger init</code> 时才生成（gitignore）。已知取舍：同一份流水<b>别重复 run</b>（暂未做去重）。</p>
+ledger query "2026年3月各项目支出合计"        # 一句话问库（NL2SQL 只读，需 DEEPSEEK_API_KEY）<br>
+ledger serve                                 # 本地网页（三栏界面） http://127.0.0.1:8000</p>
+      <p>改动均未提交；<code>data/ledger.db</code> 在你第一次 <code>ledger init</code> 时才生成（gitignore）。已知取舍：同一份流水<b>别重复 run</b>（暂未做去重）。查询结果 0 行多是“所选期间库里没数据”——先并账对应月份；整套流程可作 Claude Code skill 复用，见第 06 节。</p>
     </div>
+  </section>
+
+  <!-- ================= NL2SQL & skill ================= -->
+  <section>
+    <p class="kicker">06 · 自然语言查询与 skill</p>
+    <h2>在库里“一句话问数”：NL2SQL，以及把整套做成 skill</h2>
+    <p class="sec-sub">前几节讲的是“怎么把流水写进台账”；这一节讲“怎么把数据问出来”——中文问题 → 大模型转成只读 SQL → 只读连接执行 → 结果展示；并说明如何把这整套流程打包成 Claude Code skill 复用。</p>
+
+    <div class="panel">
+      <div class="steps">
+        <div class="step">
+          <div class="no">1</div>
+          <div><h3>输入中文问题</h3>
+            <p>网页 ② 自然语言查询 输入，或命令行 <code>ledger query "…"</code>。示例按钮/问题都默认落在当前库的数据范围内（右侧“库速览”可看日期范围）。</p></div>
+        </div>
+        <div class="step">
+          <div class="no">2</div>
+          <div><h3>大模型 NL2SQL <span class="fn">DeepSeek · OpenAI 兼容</span></h3>
+            <p>把三表真实 schema + 领域 few-shot（含“某日各项目净额”按项目窗口累计的示例）发给模型，temperature=0，只回 JSON。Key 从 <code>DEEPSEEK_API_KEY</code> 读取，Base URL / 模型可配。</p></div>
+        </div>
+        <div class="step">
+          <div class="no">3</div>
+          <div><h3>清洗 + 只读校验</h3>
+            <p>剥掉 <code># / -- / /* */</code> 注释、去 <code>库名.</code> 前缀（<code>ledger_system.ledger</code> → <code>ledger</code>）、去收尾分号；只允许单条 <code>SELECT / WITH / EXPLAIN</code>，命中写/危险语句直接拒绝（中文报错）。</p></div>
+        </div>
+        <div class="step">
+          <div class="no">4</div>
+          <div><h3>只读执行并展示 <span class="tbl">SQLite mode=ro + query_only</span></h3>
+            <p>在只读连接执行，返回列/行/行数/耗时 → 前端结果表就在按钮下方（SQL 可编辑、可重跑），CLI 打印表格。0 行时提示先确认期间数据。</p></div>
+        </div>
+      </div>
+    </div>
+
+    <div style="height:12px"></div>
+
+    <p class="sec-sub"><b>口径与安全</b>：<code>ledger.balance</code> 是全局滚动余额；“某日期每个项目的净额”必须用 <code>SUM(income-expense) OVER (PARTITION BY project …)</code> 再取截止日前最后一行（示例见 <code>.claude/skills/ledger/references/schema.md</code>）。查询一律只读、SQL 会展示供你检查后再执行。</p>
+
+    <p class="sec-sub"><b>作为 Claude Code skill 使用（可分享）</b>：仓库自带 <code>.claude/skills/ledger/</code>（<code>SKILL.md</code> + <code>references/schema.md</code>）。在本仓库会话内 <code>/ledger</code> 或直接说“帮我跑台账/查询台账”即可激活并按流程操作；跨项目分享 = 把该目录整体拷到目标项目的 <code>.claude/skills/</code>。skill 与代码的字段口径 / few-shot 需保持同步（NL2SQL 示例维护在 <code>src/ledger_etl/nl2sql.py</code> 的 <code>SYSTEM_HEAD</code>）。</p>
   </section>
 
 </div>

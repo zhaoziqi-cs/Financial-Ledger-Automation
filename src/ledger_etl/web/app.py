@@ -3,12 +3,13 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from fastapi import FastAPI, File, HTTPException, UploadFile
+from fastapi import Body, FastAPI, File, HTTPException, UploadFile
 from fastapi.responses import HTMLResponse, Response
 
 from .. import db
 from ..config import Settings, default_settings
 from ..export import MS_XLSX, ledger_to_xlsx_bytes, unmatched_to_xlsx_bytes
+from ..nl2sql import QueryError, execute_readonly, query_nl
 from ..parse_bank_flow import InputError
 from ..pipeline import run_flow
 
@@ -86,6 +87,46 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                 "audit": "/downloads/audit.xlsx",
             },
         }
+
+    def _query_payload(res):
+        return {
+            "ok": True,
+            "text": res.text,
+            "sql": res.sql,
+            "note": res.note,
+            "columns": res.columns,
+            "rows": res.rows,
+            "row_count": res.row_count,
+            "elapsed_ms": res.elapsed_ms,
+        }
+
+    @app.post("/api/query")
+    def api_query(payload: dict = Body(default={})):
+        """自然语言 → NL2SQL → 自动只读执行。"""
+        text = (payload or {}).get("text", "")
+        if not text or not str(text).strip():
+            raise HTTPException(status_code=400, detail="请输入查询问题。")
+        try:
+            res = query_nl(str(text).strip(), s)
+        except QueryError as e:
+            raise HTTPException(status_code=400, detail=str(e))
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"查询失败：{e}")
+        return _query_payload(res)
+
+    @app.post("/api/sql-run")
+    def api_sql_run(payload: dict = Body(default={})):
+        """执行用户（编辑后）的只读 SQL。"""
+        sql = (payload or {}).get("sql", "")
+        if not sql or not str(sql).strip():
+            raise HTTPException(status_code=400, detail="SQL 为空。")
+        try:
+            res = execute_readonly(s.db_path, str(sql))
+        except QueryError as e:
+            raise HTTPException(status_code=400, detail=str(e))
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"执行失败：{e}")
+        return _query_payload(res)
 
     @app.get("/downloads/ledger.xlsx")
     def download_ledger():

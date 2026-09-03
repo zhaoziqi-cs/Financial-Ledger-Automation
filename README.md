@@ -18,6 +18,14 @@ ledger --help          # 等价于：python -m ledger_etl --help
 数据库默认落在 `data/ledger.db`（SQLite，自动生成，gitignore）。可用环境变量覆盖：
 `LEDGER_DATA_DIR`（数据目录，含 `config/ raw/`）、`LEDGER_DB`（库文件路径）。
 
+自然语言查询（NL2SQL）环境变量：
+
+| 变量 | 必需 | 说明 |
+|---|---|---|
+| `DEEPSEEK_API_KEY` | 查询时必需 | DeepSeek API Key（走 OpenAI 兼容 ChatCompletions） |
+| `DEEPSEEK_MODEL` | 否 | 默认 `deepseek-v4-flash`（可改 `deepseek-chat` 等） |
+| `DEEPSEEK_BASE_URL` | 否 | 默认 `https://api.deepseek.com/v1` |
+
 ## 命令一览
 
 | 命令 | 作用 |
@@ -28,6 +36,7 @@ ledger --help          # 等价于：python -m ledger_etl --help
 | `ledger recheck [--map 新映射.xlsx]` | 用更新后的项目映射，**重新匹配历史里的未识别项目**并修正主表 |
 | `ledger export-ledger [--out ...]` | 导出主表为 ledger.xlsx |
 | `ledger export-audit [--out ...] [--all]` | 导出未识别清单（默认只导出待处理） |
+| `ledger query "问题"` | 自然语言 → SQL → 只读执行并打印结果（需 `DEEPSEEK_API_KEY`） |
 | `ledger serve [--port 8000]` | 启动本地网页端 |
 
 ## 典型用法（每月一期）
@@ -59,7 +68,34 @@ ledger export-ledger --out data/processed/ledger.xlsx
 ledger serve            # http://127.0.0.1:8000
 ```
 
-上传本期银行流水（可选带项目映射覆盖）→ 后端跑 `parse → 并账` → 返回汇总 + 主表尾部预览，并提供「最新台账」「未识别清单」下载。
+`ledger serve` 打开的是**三栏界面**：
+
+- **最左＝功能导航**：① 并账入库 / ② 自然语言查询 / ③ 台账浏览导出，点按钮切换。
+- **中间＝内容区**：当前功能的操作与结果（查询结果表就在按钮下方，SQL 可编辑后“只读执行”重跑）。
+- **右侧＝库速览**：主表行数、日期范围、最新余额、未识别待处理 + 导出下载 + 使用贴士。
+
+查询返回 0 行通常是**所选期间库里没有数据**（右侧速览可看日期范围）——先用库内有数据的月份，或到 ① 并账对应月份的流水。示例问题默认都落在当前数据范围内。
+
+## 自然语言查询（NL2SQL）
+
+```bash
+export DEEPSEEK_API_KEY=sk-...    # 必需；可选 DEEPSEEK_MODEL / DEEPSEEK_BASE_URL
+ledger query "2026年3月各项目支出合计"    # CLI（示例按当前库内数据范围）
+ledger serve                            # 或网页 ② 自然语言查询
+```
+
+- 走 OpenAI 兼容 `ChatCompletions`（默认 DeepSeek），`src/ledger_etl/nl2sql.py` 内置三表 schema + 中文 few-shot（含“某日各项目净额”窗口函数示例）。
+- **只读安全**：仅允许单条 `SELECT/WITH/EXPLAIN`；执行在 `mode=ro` + `PRAGMA query_only` 的 SQLite 连接上，且自动剥离 `#/--` 注释与 `库名.` 前缀（兼容旧 MySQL 写法）。
+- 域名口径：`ledger.balance` 是全局滚动，**“某日某项目净额”要用按项目累计的窗口函数**（示例见 `.claude/skills/ledger/references/schema.md`）。
+
+## 作为 Claude Code skill 使用（可分享）
+
+本仓库自带 Claude Code skill：`.claude/skills/ledger/`，**分享单元 = 整个目录**。
+
+- **结构**：`SKILL.md`（frontmatter：`name: ledger` + `description`，Claude Code 据此命中并激活）+ `references/schema.md`（三表结构、字段口径与示例 SQL，含“某日各项目净额”窗口函数）。
+- **在本仓库**：Claude Code 会话里运行 `/ledger`，或直接说“帮我跑台账 / 查询台账”，会加载该 skill 并按其中的流程操作（init/run/audit/recheck/export/query 等，查库一律只读）。
+- **跨项目分享**：把 `.claude/skills/ledger/` 整个拷到目标项目的 `.claude/skills/` 即可复用；目标环境需能运行 `ledger` 命令并指向正确的 `data/`（见 SKILL.md 里的环境变量与数据布局）。
+- **保持一致**：skill 与代码口径一致（查询只读、同一份流水勿重复 run、“某项目某日净额”需窗口函数）。NL2SQL 的 few-shot 维护在 `src/ledger_etl/nl2sql.py` 的 `SYSTEM_HEAD`，与 `references/schema.md` 同步修改。
 
 ## 数据与代码布局
 
@@ -71,6 +107,7 @@ data/
   processed/                导出物落盘处
   ledger.db                 SQLite 库（运行生成）
 src/ledger_etl/             可运行代码（见 docs 流程图）
+.claude/skills/ledger/      Claude Code skill（SKILL.md + references/schema.md）——见上文「作为 Claude Code skill 使用」，整目录拷贝即可分享
 tests/                      pytest
 docs/                       流程图 HTML
 ```
@@ -105,6 +142,7 @@ python -m ledger_etl.merge                 # 纯追加并账演示（临时库�
 python -m ledger_etl.pipeline              # 完整 run：真实 bank_flow 跑一遍（临时库）
 python -m ledger_etl.unmatched             # 未识别留痕 → 补映射 → recheck 修正（临时库）
 python -m ledger_etl.export                # DataFrame → xlsx bytes
+python -m ledger_etl.nl2sql                # NL2SQL 演示：离线跑清洗/只读；加 --ask 且有 key 可交互问答
 python -m ledger_etl.web.app               # 列出网页端路由（起服务请用 ledger serve）
 ```
 

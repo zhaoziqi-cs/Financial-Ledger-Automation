@@ -45,6 +45,64 @@ def test_run_rejects_bad_extension(env):
     assert "仅支持" in r.json()["detail"]
 
 
+# ---------- NL2SQL 查询端点 ----------
+
+def test_sql_run_endpoint(env):
+    env.seed()
+    c = _client(env)
+    r = c.post("/api/sql-run", json={"sql": "SELECT COUNT(*) AS n FROM ledger"})
+    assert r.status_code == 200, r.text
+    j = r.json()
+    assert j["columns"] == ["n"]
+    assert j["rows"] == [[3]]
+    assert j["row_count"] == 1
+
+
+def test_sql_run_cleans_prefix_and_comment(env):
+    env.seed()
+    c = _client(env)
+    r = c.post("/api/sql-run", json={
+        "sql": "# 注释\nSELECT COUNT(*) FROM ledger_system.ledger;",
+    })
+    assert r.status_code == 200, r.text
+    assert "ledger_system." not in r.json()["sql"]
+
+
+def test_sql_run_rejects_write(env):
+    env.seed()
+    c = _client(env)
+    r = c.post("/api/sql-run", json={"sql": "DELETE FROM ledger"})
+    assert r.status_code == 400
+    assert "只读" in r.json()["detail"]
+
+
+def test_query_requires_key(env, monkeypatch):
+    monkeypatch.delenv("DEEPSEEK_API_KEY", raising=False)
+    env.seed()
+    c = _client(env)
+    r = c.post("/api/query", json={"text": "有多少条记录"})
+    assert r.status_code == 400
+    assert "DEEPSEEK_API_KEY" in r.json()["detail"]
+
+
+def test_query_success_with_fake_llm(env, monkeypatch):
+    import ledger_etl.web.app as wapp
+    from ledger_etl.nl2sql import execute_readonly
+
+    env.seed()
+
+    def fake_query_nl(text, settings, llm=None):
+        return execute_readonly(settings.db_path, "SELECT COUNT(*) AS n FROM ledger")
+
+    monkeypatch.setattr(wapp, "query_nl", fake_query_nl)
+    c = _client(env)
+    r = c.post("/api/query", json={"text": "有多少条记录"})
+    assert r.status_code == 200, r.text
+    j = r.json()
+    assert j["row_count"] == 1
+    assert j["rows"] == [[3]]
+
+
 if __name__ == "__main__":
     import sys
     import pytest
